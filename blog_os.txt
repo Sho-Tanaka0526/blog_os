@@ -5,3 +5,140 @@
 エラーが発生する
 > error: `#[panic_handler]` function required, but not found      //#[panic_handler]関数が存在しません
 > error: language item required, but not found: `eh_personality`  //language itemが存在しません
+
+Panicの実装
+標準ならば実装されるパニックハンドラー関数を定義、実装する
+>#[panic_handler]
+eh_personality Language Item
+language itemコンパイラによって内部的に必要とされる特別な関数や型のこと
+Copyトレイとにはlanguage itemとして定義されている特別な#[lang = "copy"] attributeを持っていることがわかる
+
+eh_personality language はスタックアンワインドを実装するための関数を定義する
+パニックが起きた場合にはデフォルトとして、Rustはアンワインドを使用してすべてのスタックにある変数のデストラクタを実行する
+しかし複雑なため無効化する
+Cargo.tomlファイルに追加する
+>[profile.dev]
+>panic = "abort"
+>[profile.release]
+>panic = "abort"
+
+コンパイルしようとすると別のエラーが発生する
+>error: requires `start` lang_item
+エントリポイントを定義するstart language itemが存在しない
+
+start attribute
+main関数はプログラムを実行したときに最初に呼び出される関数であると考えられる
+しかしほとんどの言語にはランタイムシステムがあり、ガーベジコレクションやソフトウェアスレッドなどを処理する
+ランタイムは自信を初期化する必要があるためmain関数の前に呼び出す必要がある
+スタック領域の作成と正しいレジスタへの引数の配置が含まれる
+
+標準ライブラリをリンクする一般的なRustバイナリでは、crt0("C runtime zero")と呼ばれるCのランタイムライブラリで実行が開始され、Capurike-shonnnokankyougasetteisareru 
+その後Cランタイムは、start language itemで定義されているRustランタイムのエントリポイントを呼び出す
+スタックオーバーフローを防ぐ設定やパニック時のバックトレースの表示などいくつかの小さな処理を行い、最後にmain関数を呼び出す
+
+今のところ編集しているファイルではRustランタイムとcrt0へのアクセスができない
+そのためエントリポイントを定義する必要がある
+start language itemを実装することはcrt0を必要とするので不可能
+代わりにcrt0エントリポイントを直接上書きする
+
+エントリポイントの上書き
+Rustコンパイラに通常のエントリポイントを使いたくないことを伝えるために、#![no_main] attributeを追加する
+
+main関数を呼び出す基盤となるランタイムなしにはおいていても意味がないため代用としてOSのエントリポイントを独自の_start関数で上書きする
+
+Rustコンパイラが_startという名前の関数を実際に出力するように、#[no_mangle] attributeを用いて名前修飾を無効にする
+このattributeがないとコンパイラがすべての関数にユニークな名前を付けるために、シンボルを作成する
+次のステップでエントリポイントとなる関数の名前をリンカに伝えるためこの属性が必要となる
+
+Cの呼び出し規約を使用するようコンパイラに伝えるために関数をextern "C"として定義する必要がある
+_startという名前の理由はこれがほとんどのシステムのデフォルトのエントリポイント名のため
+
+戻り値の型である!は関数が発散している、つまり値を返すことができないことを意味している
+エントリポイントはどの関数からも呼び出されず、OSまたはブートローダーから直接呼び出されるので、これは必須となる
+値を返す代わりにエントリポイントはたとえばOSのexitシステムコールを呼び出す
+今回はマシンをシャットダウンするようにするとよいため今のところ無限ループを発生させる
+
+cargo buildすると見づらいリンカエラーが発生する
+
+リンカエラー
+リンカは、生成されたコードを実行可能ファイルに紐づけるプログラムのこと
+実行可能ファイルの形式はOSごとに異なるためそれぞれ異なるエラーを発生させる独自の隣家がある
+エラーの根本的な原因は同じ
+隣家のデフォルト設定ではプログラムがCランタイムに依存していると仮定しているが実際にはしていないため
+エラーを回避するためにリンカにCランタイムに依存しないことを伝える必要がある
+リンカに一連の引数を渡すかベアメタルターゲット用にビルドすることで可能となる
+
+今回はベアメタルターゲット用にビルドする方法を用いる
+様々な環境を表現するために、Rustはtarget tripleという文字列を使う
+rustc --version --bervoseを実行してホストシステムのtarget tripleを確認する
+>rustc 1.68.2 (9eb3afe9e 2023-03-27)
+>binary: rustc
+>commit-hash: 9eb3afe9ebe9c7d2b84b71002d44f4a0edac95e0
+>commit-date: 2023-03-27
+>host: x86_64-pc-windows-msvc
+>release: 1.68.2
+>LLVM version: 15.0.6
+
+hostはx86_64-pc-windows-msvc
+これにはCPUアーキテクチャ(x86_64)、ベンダー(pc)。OS(windows)、そしてABI(msvc)が含まれている
+
+ホストのtriple用にコンパイルすることで、Rustコンパイラとリンカは、でおfるとでCランタイムを使用するLinuxやWindowsのような基盤となるOSがあると想定し、それによってリンカエラーが発生する
+回避するために基盤となるOSを使用せずに異なる環境用にコンパイルする
+
+ベアメタル環境の例としては、thumbv7em-none-eabihf target tripleがある
+これは、組込みシステムを表している
+詳細は省くが、noneという文字列からわかるようにこのtarget tripleに基盤となるOSが存在しないこと
+このターゲット用にコンパイルできるようにするにはrustupにこれを追加する必要がある
+>rustup target add thumbv7em-none-eabihf
+これによりこのtarget triple用の標準(およびコア)ライブラリのコピーがダウンロードされる
+これでこのターゲット用にフリースタンディングな実行可能ファイルをビルドできる
+>cargo build --target thumbv7em-none-eabihf
+--target引数を渡すことでベアメタルターゲット用に実行可能ファイルをクロスコンパイルする
+このターゲットシステムにはOSがないため、リンカはCランタイムをリンクしようとせず、ビルドはリンカエラーなしで成功する
+
+最小限の独立したRustバイナリ
+src/main.rs:
+>#![no_std] // Rust の標準ライブラリにリンクしない
+>#![no_main] // 全ての Rust レベルのエントリポイントを無効にする
+>
+>use core::panic::PanicInfo;
+>
+>#[no_mangle] // この関数の名前修飾をしない
+>pub extern "C" fn _start() -> ! {
+>    // リンカはデフォルトで `_start` という名前の関数を探すので、
+>    // この関数がエントリポイントとなる
+>    loop {}
+>}
+>
+>/// この関数はパニック時に呼ばれる
+>#[panic_handler]
+>fn panic(_info: &PanicInfo) -> ! {
+>    loop {}
+>}
+
+Cargo.toml:
+>[package]
+>name = "crate_name"
+>version = "0.1.0"
+>authors = ["Author Name <author@example.com>"]
+>
+># the profile used for `cargo build`
+>[profile.dev]
+>panic = "abort" # disable stack unwinding on panic
+>
+># the profile used for `cargo build --release`
+>[profile.release]
+>panic = "abort" # disable stack unwinding on panic
+
+このバイナリをビルドするために、thumbv7em-none-eabihfのようなベアメタルターゲット用にコンパイルする必要がある
+>cargo build --target thumbv7em-none-eabihf
+
+あるいは追加のリンカ引数を渡してホストシステム用にコンパイルすることもできる
+#windows
+>cargo rustc -- -C link-args="/ENTRY:_start /SUBSYSTEM:console"
+これは独立したRustバイナリの最小の例に過ぎない
+_start関数が呼び出されたときにスタックが初期化されるなど、様々なことを前提としている
+そのため、このようなバイナリを実際に使用するには、より多くの手順が必要となる
+
+----------
+Rustで作る最小のカーネル
