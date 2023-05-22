@@ -1,7 +1,7 @@
 #![no_std]  //標準ライブラリのリンクを無効化
 #![no_main] //通常のエントリポイントを使用しない
 
-use core::panic::PanicInfo;
+use core::panic::PanicInfo; //panic_handlerのために利用
 
 //OSのエントリポイントを独自の_start関数で上書きしていく
 #[no_mangle]
