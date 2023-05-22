@@ -220,7 +220,7 @@ _startという名前のエントリポイントが要るということ
 このライブラリにはResultやOption、イテレータのような基本的なRustの型を持っており、暗黙のうちにすべてのno_stdなクレートにリンクされている
 
 問題は、coreライブラリはRustコンパイラと一緒にコンパイル済み(precompiled)ライブラリとして配布されているということ
-そのためサポートされているhost triple(例えば x86_64-unknown-linux-gnu)デノミ使える
+そのためサポートされているhost triple(例えば x86_64-unknown-linux-gnu)でのみ使える
 coreのターゲットを他に向けて再コンパイルする必要がある
 
 build-stdオプション
@@ -232,3 +232,6 @@ build-stdオプション
 後者が必要なのはcoreがこれに依存しているため
 これらのライブラリを再コンパイルするためには、cargoがRustのソースコードにアクセスできる必要がある
 これはrustup component add rust-srcでインストールできる
+
+unstable.build-std設定キーをセットして、rust-srcコンポーネントをインストールしたらビルドコマンドをもう一度実行する
+今回はcargo buildがcore、rustc-std-workspace-core(compiler_builtinsの依存)、そしてcompiler_builtinsを私たちのカスタムターゲット向けに再コンパイルしていることがわかる
