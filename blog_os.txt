@@ -240,3 +240,13 @@ quemアプリをwindowsにインストール
 quemのあるフォルダにblog_os.binを移動
 以下のコマンドで強引にbootimageファイルをtarget指定してqemu-systemx86_64.exeを起動
 C:\Program Files\qemu> .\qemu-system-x86_64.exe -drive format=raw,file=.\bootimage-blog_os.bin
+
+settings.jsonファイルを変更してエラーを排除する
+Ctrl+Shift+Pでコマンドパレットを開く
+>open workspace settings jsonコマンド
+settingsを以下のように変更
+"settings": 
+	{
+		"rust-analyzer.checkOnSave.allTargets": false,
+	}
+保存で終了
