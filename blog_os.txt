@@ -235,3 +235,8 @@ build-stdオプション
 
 unstable.build-std設定キーをセットして、rust-srcコンポーネントをインストールしたらビルドコマンドをもう一度実行する
 今回はcargo buildがcore、rustc-std-workspace-core(compiler_builtinsの依存)、そしてcompiler_builtinsを私たちのカスタムターゲット向けに再コンパイルしていることがわかる
+
+quemアプリをwindowsにインストール
+quemのあるフォルダにblog_os.binを移動
+以下のコマンドで強引にbootimageファイルをtarget指定してqemu-systemx86_64.exeを起動
+C:\Program Files\qemu> .\qemu-system-x86_64.exe -drive format=raw,file=.\bootimage-blog_os.bin
