@@ -14,8 +14,7 @@ static HELLO: &[u8] = b"Hello World!";
 
 #[no_mangle]    //OSのエントリポイントを独自の_start関数で上書きしていく
 pub extern "C" fn _start() -> !{
-    //リンカは`_start`という名前の関数を探すのでこの関数がエントリポイントとなる
-    //デフォルトでは_startという名前を探すため
+    //`_start`という名前のエントリポイント関数
     let vga_buffer = 0xb8000 as *mut u8;    //整数を生ポインタにキャスト
 
     for (i, &byte) in HELLO.iter().enumerate() {    //HELLOというバイト列変数の要素に対してイテレート
