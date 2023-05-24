@@ -13,6 +13,3 @@ bootloader = "0.9.23"
 panic = "abort"
 [profile.release]
 panic = "abort"
-
-[target.'cfg(target_os = "none")']
-runner = "bootimage runner"
