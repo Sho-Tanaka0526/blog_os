@@ -5,7 +5,7 @@ use core::panic::PanicInfo; //panic_handlerのために利用
 
 mod vga_buffer;
 
-static HELLO: &[u8] = b"Hello World!";
+// static HELLO: &[u8] = b"Hello World!";
 
 #[no_mangle]    //OSのエントリポイントを独自の_start関数で上書きしていく
 pub extern "C" fn _start() -> !{

@@ -56,7 +56,7 @@ pub struct Writer {
     buffer: &'static mut Buffer,    //プログラム中ずっと参照を有効にする
 }
 
-//export
+//出力
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
@@ -66,7 +66,7 @@ impl Writer {
                     self.new_line();    //改行する
                 }
 
-                let row = BUFFER_HEIGHT -1;
+                let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
 
                 let color_code = self.color_code;
@@ -82,6 +82,7 @@ impl Writer {
     fn new_line(&mut self) {/* TODO */}
 }
 
+//文字列全体の出力
 impl Writer {
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
@@ -104,6 +105,6 @@ pub fn print_something() {
     };
 
     writer.write_byte(b'H');
-    writer.write_string("ello");
+    writer.write_string("ello ");
     writer.write_string("Wörld!");
 }
