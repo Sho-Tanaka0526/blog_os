@@ -305,3 +305,6 @@ Writerｗお使ってバッファの文字を変更してみる
 次にこの関数はそれにバイトb'H'を書く
 文字列"ello"と"Wörld!"を書くことで私たちのwrite_string関数と出力不可能な文字の処理をテストできる
 print_something関数を_start関数から呼び出す
+
+完了したらcargo runでbootimage-blog_os.binに書き込み
+Powershellでqemuを起動して確認
