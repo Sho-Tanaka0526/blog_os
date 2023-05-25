@@ -240,6 +240,10 @@ quemアプリをwindowsにインストール
 quemのあるフォルダにblog_os.binを移動
 以下のコマンドで強引にbootimageファイルをtarget指定してqemu-systemx86_64.exeを起動
 C:\Program Files\qemu> .\qemu-system-x86_64.exe -drive format=raw,file=.\bootimage-blog_os.bin
+ユーザーの環境変数に"bootimage":x86_64-blog_os\debug\bootimage-blog_os.binへのパスを記述
+Powershellで起動する際に
+C:\Program Files\qemu> qemu-system-x86_64.exe -drive format=raw,file=$env:bootimage
+と記述できる
 
 settings.jsonファイルを変更してエラーを排除する
 Ctrl+Shift+Pでコマンドパレットを開く
@@ -250,3 +254,54 @@ settingsを以下のように変更
 		"rust-analyzer.checkOnSave.allTargets": false,
 	}
 保存で終了
+
+VGAテキストモード
+画面にテキストを出力するシンプルな方法
+unsafeな要素を別のモジュールにカプセルかすることで安全かつシンプルに扱えるようにするインタフェースを作る
+
+Rustのモジュール
+画面出力を扱うモジュールを作る
+u8型でenum Colorを定義
+#[allow(dead_code)]属性でColor enumに対する警告を消すことができる
+Copy, Clone, Debug, PartialEq, Eqをderiveすることでこの型のコピーセマンティクスを有効か、この型を出力することと比較することを可能とする
+前景と背景の色を指定する完全なカラーコードを表現するため、u8の上にニュータイプを作る
+
+前景色と背景色を持つので、ColorCode構造体は完全なカラーコードを持つ
+CopyとDebugトレイとをこれにderiveする
+repr(transparent)を使ってu8と全く同じデータ構造を持つようにする
+
+テキストバッファ
+画面上の文字とテキストバッファをそれぞれ表す構造体を追加する
+
+画面に書き出すためのwriter型を作る
+writerは最後の行に書き、行がいっぱいになった時(もしくは\nを受け取ったとき)は1行上に送る
+column_positionフィールドは最後の行における現在の地位を持つ
+前景、背景色はcolor_codeによって指定されていて、VGAバッファへの参照はbufferに格納されている
+明示的なライフタイムが必要になることに気を付ける
+'staticライフタイムは、その参照がプログラムの実行中ずっと有効であることを指定している
+
+出力する
+Writerｗお使ってバッファの文字を変更してみる
+引数のバイトが改行コードのバイト(\n)だった場合はwriterは何も出力しない
+代わりにあとで実装するnew_lineメソッドを呼ぶ
+
+バイトを出力するとき、writerは現在の行がいっぱいかをチェックする
+その場合に行を折り返すために先にnew_lineの呼び出しが必要
+そのあとで現在の場所のバッファに新しいScreenCharを書き込む
+最後に現在の列の位置(column_position)を進める
+
+文字列全体を出力するには、バイト列に変換し一つ一つ出力すればよい
+
+0x20(空白)～0x7e(~)までと出力不可能なバイトと分ける
+不可能な場合0xfe(■)を出力する
+
+適当な文字を画面に書き出すために、一時的に使う関数を作ってみる
+
+関数print_something()はVGAバッファの0xb8000を指す新しいwriterを作る
+まず整数0xb8000を可変な生ポインタにキャスト
+次に*を使い参照外しをすることで可変な参照に変え、即座にそれを&mutを使って再び借用する
+コンパイラはこの生ポインタが有効であることを保証できないため、この変換にはunsafeブロックが必要となる
+
+次にこの関数はそれにバイトb'H'を書く
+文字列"ello"と"Wörld!"を書くことで私たちのwrite_string関数と出力不可能な文字の処理をテストできる
+print_something関数を_start関数から呼び出す
