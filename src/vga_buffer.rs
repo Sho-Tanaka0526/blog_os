@@ -100,11 +100,11 @@ impl Writer {
 pub fn print_something() {
     let mut writer = Writer {
         column_position: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Black),
+        color_code: ColorCode::new(Color::Yellow, Color::Black),    //文字色を黄色、背景色を黒色に
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     };
 
-    writer.write_byte(b'H');
+    writer.write_byte(b'H');    //記述する文字列をwriterに書き込み
     writer.write_string("ello ");
     writer.write_string("Wörld!");
 }
