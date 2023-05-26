@@ -308,3 +308,12 @@ print_something関数を_start関数から呼び出す
 
 完了したらcargo runでbootimage-blog_os.binに書き込み
 Powershellでqemuを起動して確認
+
+Volatile(揮発性)
+書き込まれたBufferから文字を読み取るという動作を許可する必要がある
+volatileと指定する必要がある
+最適化により取り除かれるべきでないとコンパイラに命令する
+
+VGAバッファへのvolatileな書き込みをするためにvolatileライブラリを利用する
+このクレートはread,writeというメソッドを持つラッパー型を定義する
+

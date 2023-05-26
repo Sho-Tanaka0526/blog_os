@@ -41,12 +41,16 @@ struct ScreenChar {
     color_code: ColorCode,
 }
 
+//テキストバッファのサイズを指定するグローバル変数
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
+//Volatile(揮発性)でバッファへの書き込みを最適化により処理させない
+use volatile::Volatile;
+
 #[repr(transparent)]
 struct Buffer {
-    chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
+    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 //writer
@@ -70,10 +74,10 @@ impl Writer {
                 let col = self.column_position;
 
                 let color_code = self.color_code;
-                self.buffer.chars[row][col] = ScreenChar {  //文字の書き込み
+                self.buffer.chars[row][col].write(ScreenChar {  //書き込みの処理
                     ascii_character: byte,
                     color_code,
-                };
+                });
                 self.column_position += 1;  //現在の列の位置を進める
             }
         }
