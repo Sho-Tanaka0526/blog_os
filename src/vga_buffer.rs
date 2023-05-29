@@ -2,6 +2,10 @@
 use volatile::Volatile;
 //フォーマットマクロの実装
 use core::fmt;
+//lazy_staticを実装
+use lazy_static::lazy_static;
+//spinlockの実装
+use spin::Mutex;
 
 //Color
 #[allow(dead_code)] //警告の打ち消し
@@ -120,6 +124,7 @@ impl Writer {
     }
 }
 
+//フォーマットマクロ
 impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_string(s);
@@ -127,16 +132,30 @@ impl fmt::Write for Writer {
     }
 }
 
-//一時的に使う書き出し関数
-pub fn print_something() {
-    use core::fmt::Write;
-    let mut writer = Writer {
+//staticなWRITERをつくる
+//lazy_staticを実装
+lazy_static! {
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Black),    //文字色を黄色、背景色を黒色に
+        color_code: ColorCode::new(Color::Yellow, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    };
-    
-    writer.write_byte(b'H');    //記述する文字列をwriterに書き込み
-    writer.write_string("ello! ");
-    write!(writer, "The numbers are {} and {}",42, 1.0/3.0).unwrap();
+    });
+}
+
+//printlnの実装
+#[macro_export] //クレートのどこでも使えるようにする
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
+
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments) {
+    use core::fmt::Write;
+    WRITER.lock().write_fmt(args).unwrap();
 }
