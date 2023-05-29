@@ -1,3 +1,8 @@
+//Volatile(揮発性)でバッファへの書き込みを最適化により処理させない
+use volatile::Volatile;
+//フォーマットマクロの実装
+use core::fmt;
+
 //Color
 #[allow(dead_code)] //警告の打ち消し
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,8 +39,7 @@ impl ColorCode {
 
 //textbuffer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(C)]  //デフォルトの構造体におけるフィールドの並べ方が未定義のため
-            //Cと同じように並べる
+#[repr(C)]  //デフォルトの構造体におけるフィールドの並べ方が未定義のためCと同じように並べる
 struct ScreenChar {
     ascii_character: u8,
     color_code: ColorCode,
@@ -45,8 +49,6 @@ struct ScreenChar {
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
-//Volatile(揮発性)でバッファへの書き込みを最適化により処理させない
-use volatile::Volatile;
 
 #[repr(transparent)]
 struct Buffer {
@@ -60,8 +62,8 @@ pub struct Writer {
     buffer: &'static mut Buffer,    //プログラム中ずっと参照を有効にする
 }
 
-//出力
 impl Writer {
+    //出力のための関数
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),   //引数が改行の場合
@@ -82,33 +84,60 @@ impl Writer {
             }
         }
     }
-
-    fn new_line(&mut self) {/* TODO */}
-}
-
-//文字列全体の出力
-impl Writer {
+        
+    //文字列全体の出力
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
                 //出力可能なASCIIバイトか、改行コード
                 0x20..=0x7e | b'\n' => self.write_byte(byte),
                 //出力可能なASCIIバイトではない
-                _ => self.write_byte(0xfe),
+                _ => self.write_byte(0xfe), //■を出力
             }
         }
+    }
+
+    //改行の実装
+    fn new_line(&mut self) {
+        for row in 1..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let character = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(character);
+            }
+        }
+        self.clear_row(BUFFER_HEIGHT - 1);
+        self.column_position = 0;
+    }
+    
+    //改行のためのclear_rowの実装
+    fn clear_row(&mut self, row: usize) {
+        let blank = ScreenChar {
+            ascii_character: b' ',
+            color_code: self.color_code,
+        };
+        for col in 0..BUFFER_WIDTH {
+            self.buffer.chars[row][col].write(blank);
+        }
+    }
+}
+
+impl fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write_string(s);
+        Ok(())
     }
 }
 
 //一時的に使う書き出し関数
 pub fn print_something() {
+    use core::fmt::Write;
     let mut writer = Writer {
         column_position: 0,
         color_code: ColorCode::new(Color::Yellow, Color::Black),    //文字色を黄色、背景色を黒色に
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     };
-
+    
     writer.write_byte(b'H');    //記述する文字列をwriterに書き込み
-    writer.write_string("ello ");
-    writer.write_string("Wörld!");
+    writer.write_string("ello! ");
+    write!(writer, "The numbers are {} and {}",42, 1.0/3.0).unwrap();
 }
