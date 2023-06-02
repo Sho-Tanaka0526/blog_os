@@ -11,7 +11,7 @@ mod vga_buffer;
 pub extern "C" fn _start() -> !{
     println!("Hello World{}", "!");
     panic!("Some panic message");
-    loop {}
+    //loop {}
 }
 
 //この関数はパニック時に呼ばれる
